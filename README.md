@@ -18,9 +18,15 @@ ReelConverter is intentionally simple. It was made to compress screen recordings
 
 **Requires macOS 13 or later.** Download a ZIP for your Mac's architecture from [GitHub Releases](https://github.com/aleradev12/reelconverter/releases), unzip it, and move `ReelConverter.app` to Applications. Check the assets listed on the release page for supported architectures.
 
-ReelConverter uses [FFmpeg](https://ffmpeg.org/) and `ffprobe` but does not bundle them. On first launch, if either is missing, the app can offer to install FFmpeg through [Homebrew](https://brew.sh/). You can also install it yourself with `brew install ffmpeg`.
+Alternatively, install with [Homebrew](https://brew.sh/) on an Apple silicon Mac:
 
-> **Note:** Builds without Apple Developer ID signing and notarization may be blocked by macOS Gatekeeper. The current build script creates an ad-hoc signature only. Do not disable Gatekeeper system-wide.
+```sh
+brew install --cask aleradev12/tap/reelconverter
+```
+
+ReelConverter uses [FFmpeg](https://ffmpeg.org/) and `ffprobe` but does not bundle them. The Homebrew Cask installs FFmpeg as a dependency. If you install the ZIP instead, the app can offer to install FFmpeg on first launch; you can also run `brew install ffmpeg` yourself.
+
+> **Note:** This app has only an ad-hoc signature and is not notarized. macOS Gatekeeper may block it after downloading, including when installed through Homebrew. Do not disable Gatekeeper system-wide.
 
 ## Use
 
