@@ -535,9 +535,9 @@ struct ConverterView: View {
         executablePaths(named: "ffprobe").first { FileManager.default.isExecutableFile(atPath: $0) }
     }
     private static func executablePaths(named name: String) -> [String] {
-        let standard = ["/opt/homebrew/bin/\\(name)", "/usr/local/bin/\\(name)", "/usr/bin/\\(name)"]
+        let standard = ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)"]
         let fromPath = (ProcessInfo.processInfo.environment["PATH"] ?? "")
-            .split(separator: ":").map { String($0) + "/\\(name)" }
+            .split(separator: ":").map { String($0) + "/\(name)" }
         return standard + fromPath
     }
 }
