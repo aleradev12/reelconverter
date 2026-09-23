@@ -5,7 +5,7 @@ import AppKit
 @main
 struct ReelConverterApp: App {
     var body: some Scene {
-        WindowGroup { ConverterView() }
+        Window("ReelConverter", id: "main") { ConverterView() }
             .windowStyle(.hiddenTitleBar)
             .defaultSize(width: 750, height: 595)
     }
@@ -36,6 +36,7 @@ struct ConverterView: View {
     @State private var isHovering = false
     @State private var isDropHover = false
     @State private var isDeveloperHover = false
+    @State private var isConvertHover = false
     @State private var showError = false
     @State private var status = "Add videos to get started"
     @State private var sourceFrameRate = "—"
@@ -259,8 +260,14 @@ struct ConverterView: View {
                 HStack(spacing: scaled(10)) {
                     if isConverting { ProgressView().controlSize(.small).tint(.white) }
                     Text(isConverting ? "Converting…" : "Convert").font(.system(size: scaled(14), weight: .semibold))
-                }.padding(.horizontal, scaled(25)).frame(height: scaled(48)).background(videos.isEmpty || isConverting ? Color.white.opacity(0.12) : Color(red: 0.88, green: 0.32, blue: 0.21)).clipShape(RoundedRectangle(cornerRadius: scaled(9)))
-            }.buttonStyle(.plain).disabled(videos.isEmpty || isConverting)
+                }.padding(.horizontal, scaled(25)).frame(height: scaled(48))
+                    .background(convertButtonColor)
+                    .clipShape(RoundedRectangle(cornerRadius: scaled(9)))
+                    .shadow(color: isConvertHover && !videos.isEmpty && !isConverting ? Color(red: 0.95, green: 0.36, blue: 0.25).opacity(0.34) : .clear, radius: scaled(8), y: scaled(2))
+            }.buttonStyle(.plain)
+                .onHover { isConvertHover = $0 }
+                .help(videos.isEmpty ? "Add videos to enable conversion" : "Convert queued videos")
+                .disabled(videos.isEmpty || isConverting)
             Spacer()
         }
         .padding(.horizontal, scaled(24)).padding(.top, scaled(10)).padding(.bottom, scaled(8))
@@ -271,6 +278,11 @@ struct ConverterView: View {
             }
         }
         .overlay(alignment: .top) { LinearGradient(colors: [Color.white.opacity(0), Color.white.opacity(0.04)], startPoint: .top, endPoint: .bottom).frame(height: scaled(1)) }
+    }
+
+    private var convertButtonColor: Color {
+        if videos.isEmpty || isConverting { return Color.white.opacity(0.12) }
+        return isConvertHover ? Color(red: 0.98, green: 0.43, blue: 0.31) : Color(red: 0.88, green: 0.32, blue: 0.21)
     }
 
     private func pickFiles() {
