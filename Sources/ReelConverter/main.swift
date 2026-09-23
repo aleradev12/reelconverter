@@ -22,6 +22,8 @@ struct VideoItem: Identifiable {
 struct ConverterView: View {
     @State private var videos: [VideoItem] = []
     @State private var codec = "H.264"
+    @AppStorage("reelconverter.theme") private var themePreference = "system"
+    @Environment(\.colorScheme) private var colorScheme
     @State private var bitrate = "5"
     @State private var customBitrate = ""
     @State private var frameRate = "Original"
@@ -71,7 +73,7 @@ struct ConverterView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
             .background {
-                Color(red: 0.075, green: 0.082, blue: 0.095)
+                pageBackground
                     .contentShape(Rectangle())
                     .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
             }
@@ -81,7 +83,8 @@ struct ConverterView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .foregroundStyle(Color.white.opacity(0.92))
+        .foregroundStyle(primaryText)
+        .preferredColorScheme(preferredScheme)
         .background(WindowAspectRatio())
         .onDrop(of: [UTType.fileURL], isTargeted: $isHovering, perform: receiveDrop)
         .onAppear {
@@ -95,21 +98,49 @@ struct ConverterView: View {
         .alert("Cannot convert", isPresented: $showError) { Button("OK", role: .cancel) {} } message: { Text(status) }
     }
 
+    private var isDark: Bool {
+        if themePreference == "dark" { return true }
+        if themePreference == "light" { return false }
+        return colorScheme == .dark
+    }
+    private var preferredScheme: ColorScheme? {
+        switch themePreference {
+        case "dark": .dark
+        case "light": .light
+        default: nil
+        }
+    }
+    private func ink(_ opacity: Double) -> Color { isDark ? Color.white.opacity(opacity) : Color.black.opacity(opacity) }
+    private var pageBackground: Color { isDark ? Color(red: 0.075, green: 0.082, blue: 0.095) : Color(red: 0.94, green: 0.95, blue: 0.97) }
+    private var primaryText: Color { isDark ? Color.white.opacity(0.92) : Color(red: 0.12, green: 0.14, blue: 0.17) }
+    private var secondaryText: Color { isDark ? Color.white.opacity(0.62) : Color(red: 0.28, green: 0.31, blue: 0.36) }
+    private var tertiaryText: Color { isDark ? Color.white.opacity(0.43) : Color(red: 0.40, green: 0.43, blue: 0.48) }
+    private var faintSurface: Color { isDark ? Color.white.opacity(0.025) : Color.black.opacity(0.035) }
+    private var buttonSurface: Color { isDark ? Color.white.opacity(0.055) : Color.black.opacity(0.055) }
+    private var selectedSurface: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.11) }
+    private var borderColor: Color { isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.14) }
+
     private var header: some View {
         HStack(spacing: scaled(10)) {
             Image(systemName: "film.fill").font(.system(size: scaled(16))).foregroundStyle(Color(red: 0.95, green: 0.49, blue: 0.35))
             Text("REELCONVERTER").font(.system(size: scaled(13), weight: .bold, design: .rounded)).tracking(1.4)
-            Text("BATCH VIDEO").font(.system(size: scaled(9), weight: .medium)).tracking(1).foregroundStyle(.white.opacity(0.4))
+            Text("BATCH VIDEO").font(.system(size: scaled(9), weight: .medium)).tracking(1).foregroundStyle(tertiaryText)
             Spacer(minLength: 8)
-            Text("DEVELOPER ·").font(.system(size: scaled(9), weight: .medium)).tracking(0.5).foregroundStyle(.white.opacity(0.45))
+            Picker("Appearance", selection: $themePreference) {
+                Image(systemName: "circle.lefthalf.filled").tag("system").help("System appearance")
+                Image(systemName: "sun.max.fill").tag("light").help("Light appearance")
+                Image(systemName: "moon.fill").tag("dark").help("Dark appearance")
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(width: scaled(84))
+            Text("DEVELOPER ·").font(.system(size: scaled(9), weight: .medium)).tracking(0.5).foregroundStyle(tertiaryText)
             Link("ALERADEV12", destination: URL(string: "https://github.com/aleradev12")!)
                 .font(.system(size: scaled(9), weight: .medium)).tracking(0.5)
-                .foregroundStyle(isDeveloperHover ? Color(red: 0.95, green: 0.49, blue: 0.35) : .white.opacity(0.65))
+                .foregroundStyle(isDeveloperHover ? Color(red: 0.95, green: 0.49, blue: 0.35) : secondaryText)
                 .onHover { isDeveloperHover = $0 }
                 .help("Open GitHub profile")
         }
         .padding(.horizontal, scaled(24)).frame(height: scaled(42))
-        .background(Color.white.opacity(0.025)).overlay(alignment: .bottom) { Rectangle().fill(Color.white.opacity(0.07)).frame(height: scaled(1)) }
+        .background(faintSurface).overlay(alignment: .bottom) { Rectangle().fill(borderColor.opacity(0.45)).frame(height: scaled(1)) }
     }
 
     private var settingsPanel: some View {
@@ -145,7 +176,7 @@ struct ConverterView: View {
             }
             .font(.system(size: scaled(12), weight: .medium))
             .frame(maxWidth: .infinity).frame(height: scaled(56))
-            .background(keepAudio ? Color.white.opacity(0.16) : Color.white.opacity(0.055))
+            .background(keepAudio ? selectedSurface : buttonSurface)
             .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
         }
         .buttonStyle(.plain).modifier(SettingHover())
@@ -163,7 +194,7 @@ struct ConverterView: View {
                     Text(title(value)).font(.system(size: scaled(14.4), weight: .medium))
                         .lineLimit(1).minimumScaleFactor(0.8)
                         .frame(minWidth: scaled(buttonWidth), maxWidth: .infinity).frame(height: scaled(buttonHeight))
-                        .background(selection.wrappedValue == value ? Color.white.opacity(0.16) : Color.white.opacity(0.055))
+                        .background(selection.wrappedValue == value ? selectedSurface : buttonSurface)
                         .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
                 }.buttonStyle(.plain).modifier(SettingHover()).help("\(name): \(value)")
             }
@@ -172,7 +203,7 @@ struct ConverterView: View {
                     if !custom.wrappedValue.isEmpty { selection.wrappedValue = custom.wrappedValue }
                 }
                 .frame(minWidth: scaled(74), maxWidth: .infinity).frame(height: scaled(26))
-                .padding(.horizontal, scaled(6)).background(Color.white.opacity(0.055))
+                .padding(.horizontal, scaled(6)).background(buttonSurface)
                 .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
                 .onChange(of: custom.wrappedValue) { value in if !value.isEmpty { selection.wrappedValue = value } }
                 .help("Custom \(name.lowercased()) value")
@@ -188,7 +219,7 @@ struct ConverterView: View {
                     Text(value).font(.system(size: scaled(14.4), weight: .medium))
                         .minimumScaleFactor(0.85).lineLimit(1)
                         .frame(minWidth: scaled(42), maxWidth: .infinity).frame(height: scaled(26))
-                        .background(bitrate == value ? Color.white.opacity(0.16) : Color.white.opacity(0.055))
+                        .background(bitrate == value ? selectedSurface : buttonSurface)
                         .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
                 }.buttonStyle(.plain).modifier(SettingHover())
             }
@@ -196,7 +227,7 @@ struct ConverterView: View {
                 if !customBitrate.isEmpty { bitrate = customBitrate }
             }
             .frame(minWidth: scaled(74), maxWidth: .infinity).frame(height: scaled(26))
-            .padding(.horizontal, scaled(6)).background(Color.white.opacity(0.055))
+            .padding(.horizontal, scaled(6)).background(buttonSurface)
             .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
             .onChange(of: customBitrate) { value in if !value.isEmpty { bitrate = value } }
             .help("Custom bitrate in Mbps")
@@ -208,17 +239,17 @@ struct ConverterView: View {
         VStack(alignment: .leading, spacing: scaled(10)) {
             HStack {
                 Text("Files").font(.system(size: scaled(20), weight: .semibold))
-                Text("\(videos.count)").font(.system(size: scaled(12))).foregroundStyle(.white.opacity(0.4))
+                Text("\(videos.count)").font(.system(size: scaled(12))).foregroundStyle(ink(0.4))
                 Spacer()
-                Button("Clear queue") { videos.removeAll(); status = "Queue cleared" }.buttonStyle(.plain).font(.system(size: scaled(11))).foregroundStyle(.white.opacity(0.6)).padding(scaled(6)).modifier(SettingHover()).disabled(videos.isEmpty || isConverting)
-                Button { pickFiles() } label: { Image(systemName: "plus").font(.system(size: scaled(12), weight: .semibold)).frame(width: scaled(30), height: scaled(30)).background(Color.white.opacity(0.07)).clipShape(RoundedRectangle(cornerRadius: scaled(6))) }.buttonStyle(.plain).modifier(SettingHover()).help("Add videos")
+                Button("Clear queue") { videos.removeAll(); status = "Queue cleared" }.buttonStyle(.plain).font(.system(size: scaled(11))).foregroundStyle(ink(0.6)).padding(scaled(6)).modifier(SettingHover()).disabled(videos.isEmpty || isConverting)
+                Button { pickFiles() } label: { Image(systemName: "plus").font(.system(size: scaled(12), weight: .semibold)).frame(width: scaled(30), height: scaled(30)).background(ink(0.07)).clipShape(RoundedRectangle(cornerRadius: scaled(6))) }.buttonStyle(.plain).modifier(SettingHover()).help("Add videos")
             }
             if videos.isEmpty { dropZone.frame(maxHeight: .infinity) }
             else {
                 ScrollView { fileList.padding(.bottom, scaled(8)) }
                     .scrollIndicators(.hidden)
                     .frame(maxHeight: .infinity)
-                    .overlay(alignment: .bottom) { LinearGradient(colors: [Color.clear, Color(red: 0.075, green: 0.082, blue: 0.095).opacity(0.75)], startPoint: .top, endPoint: .bottom).frame(height: scaled(42)).allowsHitTesting(false) }
+                    .overlay(alignment: .bottom) { LinearGradient(colors: [Color.clear, pageBackground.opacity(0.92)], startPoint: .top, endPoint: .bottom).frame(height: scaled(42)).allowsHitTesting(false) }
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -228,10 +259,10 @@ struct ConverterView: View {
             VStack(spacing: scaled(12)) {
                 Image(systemName: "arrow.down.to.line.compact").font(.system(size: scaled(22), weight: .light)).foregroundStyle(Color(red: 0.95, green: 0.49, blue: 0.35))
                 Text("Drop videos anywhere in this window").font(.system(size: scaled(16), weight: .medium))
-                Text("or click to choose files  ·  MP4, MOV, MKV, AVI, M4V").font(.system(size: scaled(12))).foregroundStyle(.white.opacity(0.48))
+                Text("or click to choose files  ·  MP4, MOV, MKV, AVI, M4V").font(.system(size: scaled(12))).foregroundStyle(ink(0.48))
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity).background(isHovering || isDropHover ? Color.white.opacity(0.07) : Color.white.opacity(0.025))
-            .clipShape(RoundedRectangle(cornerRadius: scaled(10))).overlay(RoundedRectangle(cornerRadius: scaled(10)).strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 5])).foregroundStyle(isHovering || isDropHover ? Color.orange : Color.white.opacity(0.16)))
+            .frame(maxWidth: .infinity, maxHeight: .infinity).background(isHovering || isDropHover ? ink(0.07) : faintSurface)
+            .clipShape(RoundedRectangle(cornerRadius: scaled(10))).overlay(RoundedRectangle(cornerRadius: scaled(10)).strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 5])).foregroundStyle(isHovering || isDropHover ? Color.orange : borderColor))
         }.buttonStyle(.plain).frame(maxWidth: .infinity, maxHeight: .infinity).onHover { isDropHover = $0 }
     }
 
@@ -242,24 +273,24 @@ struct ConverterView: View {
                     Image(systemName: "play.rectangle").font(.system(size: scaled(18))).foregroundStyle(Color(red: 0.95, green: 0.49, blue: 0.35))
                     VStack(alignment: .leading, spacing: scaled(5)) {
                         Text(videos[index].url.lastPathComponent).font(.system(size: scaled(13), weight: .medium)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                        Text("Original · \(formattedSize(videos[index].url))").font(.system(size: scaled(11))).foregroundStyle(.white.opacity(0.45))
+                        Text("Original · \(formattedSize(videos[index].url))").font(.system(size: scaled(11))).foregroundStyle(ink(0.45))
                         if let output = videos[index].outputURL {
                             HStack(spacing: scaled(6)) {
                                 Text(output.lastPathComponent).font(.system(size: scaled(12), weight: .medium)).lineLimit(1).truncationMode(.middle)
                                 Button { revealInFinder(output) } label: { Image(systemName: "folder.badge.plus").font(.system(size: scaled(13))).frame(width: scaled(24), height: scaled(24)) }.buttonStyle(.plain).modifier(FolderHover()).help("Reveal converted video in Finder")
                             }
-                            Text("Converted · \(formattedSize(output))").font(.system(size: scaled(11))).foregroundStyle(.white.opacity(0.45))
+                            Text("Converted · \(formattedSize(output))").font(.system(size: scaled(11))).foregroundStyle(ink(0.45))
                         } else if isConverting && videos[index].progress > 0 {
                             ProgressView(value: videos[index].progress).tint(Color(red: 0.95, green: 0.49, blue: 0.35)).frame(maxWidth: 200)
-                        } else { Text(videos[index].state).font(.system(size: scaled(11))).foregroundStyle(.white.opacity(0.4)) }
+                        } else { Text(videos[index].state).font(.system(size: scaled(11))).foregroundStyle(ink(0.4)) }
                     }
                     Spacer(minLength: 8)
                     Button { revealInFinder(videos[index].url) } label: { Image(systemName: "folder").font(.system(size: scaled(15))).frame(width: scaled(34), height: scaled(34)) }.buttonStyle(.plain).modifier(FolderHover()).help("Reveal original in Finder")
-                    if !isConverting { Button { videos.remove(at: index) } label: { Image(systemName: "xmark").font(.system(size: scaled(10))).padding(scaled(8)) }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.4)) }
+                    if !isConverting { Button { videos.remove(at: index) } label: { Image(systemName: "xmark").font(.system(size: scaled(10))).padding(scaled(8)) }.buttonStyle(.plain).foregroundStyle(ink(0.4)) }
                 }.padding(.horizontal, scaled(14)).padding(.vertical, scaled(12))
-                if index != videos.count - 1 { Divider().overlay(Color.white.opacity(0.07)) }
+                if index != videos.count - 1 { Divider().overlay(ink(0.07)) }
             }
-        }.background(Color.white.opacity(0.025)).clipShape(RoundedRectangle(cornerRadius: scaled(9)))
+        }.background(faintSurface).clipShape(RoundedRectangle(cornerRadius: scaled(9)))
     }
 
     private var footer: some View {
@@ -267,7 +298,7 @@ struct ConverterView: View {
             Spacer()
             Button(action: startConversion) {
                 HStack(spacing: scaled(10)) {
-                    if isConverting { ProgressView().controlSize(.small).tint(.white) }
+                    if isConverting { ProgressView().controlSize(.small).tint(primaryText) }
                     Text(isConverting ? "Converting…" : "Convert").font(.system(size: scaled(14), weight: .semibold))
                 }.padding(.horizontal, scaled(25)).frame(height: scaled(48))
                     .background(convertButtonColor)
@@ -286,7 +317,7 @@ struct ConverterView: View {
                 Rectangle().fill(.regularMaterial).mask(LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .clear, location: 0.48), .init(color: .black.opacity(0.7), location: 1)], startPoint: .top, endPoint: .bottom))
             }
         }
-        .overlay(alignment: .top) { LinearGradient(colors: [Color.white.opacity(0), Color.white.opacity(0.04)], startPoint: .top, endPoint: .bottom).frame(height: scaled(1)) }
+        .overlay(alignment: .top) { LinearGradient(colors: [ink(0), ink(0.04)], startPoint: .top, endPoint: .bottom).frame(height: scaled(1)) }
     }
 
     private var dependencySheet: some View {
@@ -331,12 +362,11 @@ struct ConverterView: View {
             }
         }
         .padding(24).frame(width: 410)
-        .background(Color(red: 0.075, green: 0.082, blue: 0.095))
-        .preferredColorScheme(.dark)
+        .background(pageBackground)
     }
 
     private var convertButtonColor: Color {
-        if videos.isEmpty || isConverting { return Color.white.opacity(0.12) }
+        if videos.isEmpty || isConverting { return ink(0.12) }
         return isConvertHover ? Color(red: 0.98, green: 0.43, blue: 0.31) : Color(red: 0.88, green: 0.32, blue: 0.21)
     }
 
@@ -547,7 +577,10 @@ private struct ConfigFrame: ViewModifier {
     let icon: String
     let height: CGFloat
     let scale: CGFloat
-    private let background = Color(red: 0.075, green: 0.082, blue: 0.095)
+    @Environment(\.colorScheme) private var colorScheme
+    private var background: Color { colorScheme == .dark ? Color(red: 0.075, green: 0.082, blue: 0.095) : Color(red: 0.94, green: 0.95, blue: 0.97) }
+    private var border: Color { colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.14) }
+    private var labelText: Color { colorScheme == .dark ? Color.white.opacity(0.70) : Color.black.opacity(0.68) }
 
     func body(content: Content) -> some View {
         content
@@ -555,11 +588,11 @@ private struct ConfigFrame: ViewModifier {
             .padding(.horizontal, 8 * scale).padding(.top, 16 * scale)
             .frame(height: height * scale, alignment: .top)
             .background(background.opacity(0.01))
-            .overlay(RoundedRectangle(cornerRadius: 9 * scale).strokeBorder(Color.white.opacity(0.15), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 9 * scale).strokeBorder(border, lineWidth: 1))
             .overlay(alignment: .topLeading) {
                 Label(title, systemImage: icon)
                     .font(.system(size: 11 * scale, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.70))
+                    .foregroundStyle(labelText)
                     .padding(.horizontal, 5 * scale)
                     .background(background)
                     .offset(x: 10 * scale, y: -7 * scale)
@@ -576,6 +609,7 @@ private extension View {
 
 private struct StableInput: NSViewRepresentable {
     @Binding var text: String
+    @Environment(\.colorScheme) private var colorScheme
     let scale: CGFloat
     let onFocus: () -> Void
 
@@ -599,10 +633,11 @@ private struct StableInput: NSViewRepresentable {
         if field.stringValue != text { field.stringValue = text }
         let font = NSFont.monospacedSystemFont(ofSize: 12 * scale, weight: .regular)
         field.font = font
-        field.textColor = NSColor.white.withAlphaComponent(0.92)
+        field.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+        field.textColor = colorScheme == .dark ? NSColor.white.withAlphaComponent(0.92) : NSColor.labelColor
         field.placeholderAttributedString = NSAttributedString(string: "Custom", attributes: [
             .font: font,
-            .foregroundColor: NSColor.white.withAlphaComponent(0.42)
+            .foregroundColor: colorScheme == .dark ? NSColor.white.withAlphaComponent(0.42) : NSColor.secondaryLabelColor
         ])
     }
 
@@ -630,20 +665,22 @@ private struct StableInput: NSViewRepresentable {
 }
 
 private struct SettingHover: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var hovering = false
     func body(content: Content) -> some View {
         content
-            .background(hovering ? Color.white.opacity(0.10) : Color.clear)
+            .background(hovering ? (colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07)) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .onHover { hovering = $0 }
     }
 }
 
 private struct FolderHover: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var hovering = false
     func body(content: Content) -> some View {
         content
-            .background(hovering ? Color.white.opacity(0.15) : Color.clear)
+            .background(hovering ? (colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.10)) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .onHover { hovering = $0 }
     }
