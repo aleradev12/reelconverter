@@ -120,6 +120,24 @@ struct ConverterView: View {
     private var selectedSurface: Color { isDark ? Color.white.opacity(0.16) : Color.black.opacity(0.11) }
     private var borderColor: Color { isDark ? Color.white.opacity(0.15) : Color.black.opacity(0.14) }
 
+    private func appearanceButton(_ symbol: String, value: String, help: String) -> some View {
+        Button {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+            themePreference = value
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: scaled(11), weight: .medium))
+                .frame(width: scaled(26), height: scaled(26))
+                .background(themePreference == value ? selectedSurface : buttonSurface)
+                .clipShape(RoundedRectangle(cornerRadius: scaled(5)))
+        }
+        .buttonStyle(.plain)
+        .modifier(SettingHover())
+        .help(help)
+        .accessibilityLabel(help)
+        .accessibilityValue(themePreference == value ? "Selected" : "")
+    }
+
     private var header: some View {
         HStack(spacing: scaled(10)) {
             Image(systemName: "film.fill").font(.system(size: scaled(16))).foregroundStyle(Color(red: 0.95, green: 0.49, blue: 0.35))
@@ -132,12 +150,13 @@ struct ConverterView: View {
                 .foregroundStyle(isDeveloperHover ? Color(red: 0.95, green: 0.49, blue: 0.35) : secondaryText)
                 .onHover { isDeveloperHover = $0 }
                 .help("Open GitHub profile")
-            Picker("Appearance", selection: $themePreference) {
-                Image(systemName: "circle.lefthalf.filled").tag("system").help("System appearance")
-                Image(systemName: "sun.max.fill").tag("light").help("Light appearance")
-                Image(systemName: "moon.fill").tag("dark").help("Dark appearance")
+            HStack(spacing: scaled(3)) {
+                appearanceButton("circle.lefthalf.filled", value: "system", help: "System appearance")
+                appearanceButton("sun.max.fill", value: "light", help: "Light appearance")
+                appearanceButton("moon.fill", value: "dark", help: "Dark appearance")
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: scaled(84))
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Appearance")
         }
         .padding(.horizontal, scaled(24)).frame(height: scaled(42))
         .background(faintSurface).overlay(alignment: .bottom) { Rectangle().fill(borderColor.opacity(0.45)).frame(height: scaled(1)) }
