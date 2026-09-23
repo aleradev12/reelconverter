@@ -126,18 +126,18 @@ struct ConverterView: View {
             Text("REELCONVERTER").font(.system(size: scaled(13), weight: .bold, design: .rounded)).tracking(1.4)
             Text("BATCH VIDEO").font(.system(size: scaled(9), weight: .medium)).tracking(1).foregroundStyle(tertiaryText)
             Spacer(minLength: 8)
-            Picker("Appearance", selection: $themePreference) {
-                Image(systemName: "circle.lefthalf.filled").tag("system").help("System appearance")
-                Image(systemName: "sun.max.fill").tag("light").help("Light appearance")
-                Image(systemName: "moon.fill").tag("dark").help("Dark appearance")
-            }
-            .pickerStyle(.segmented).labelsHidden().frame(width: scaled(84))
             Text("DEVELOPER ·").font(.system(size: scaled(9), weight: .medium)).tracking(0.5).foregroundStyle(tertiaryText)
             Link("ALERADEV12", destination: URL(string: "https://github.com/aleradev12")!)
                 .font(.system(size: scaled(9), weight: .medium)).tracking(0.5)
                 .foregroundStyle(isDeveloperHover ? Color(red: 0.95, green: 0.49, blue: 0.35) : secondaryText)
                 .onHover { isDeveloperHover = $0 }
                 .help("Open GitHub profile")
+            Picker("Appearance", selection: $themePreference) {
+                Image(systemName: "circle.lefthalf.filled").tag("system").help("System appearance")
+                Image(systemName: "sun.max.fill").tag("light").help("Light appearance")
+                Image(systemName: "moon.fill").tag("dark").help("Dark appearance")
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(width: scaled(84))
         }
         .padding(.horizontal, scaled(24)).frame(height: scaled(42))
         .background(faintSurface).overlay(alignment: .bottom) { Rectangle().fill(borderColor.opacity(0.45)).frame(height: scaled(1)) }
