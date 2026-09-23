@@ -343,7 +343,7 @@ struct ConverterView: View {
         VStack(alignment: .leading, spacing: 16) {
             Label("FFmpeg required", systemImage: "film.stack")
                 .font(.system(size: 20, weight: .semibold))
-            Text("ReelConverter uses FFmpeg and ffprobe to convert videos. They were not found on this Mac.")
+            Text("ReelConverter uses FFmpeg and ffprobe to convert videos. One or both are missing or cannot run on this Mac.")
                 .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
 
             if let homebrewPath {
@@ -441,7 +441,7 @@ struct ConverterView: View {
                     sheetState.wrappedValue = false
                 } else {
                     messageState.wrappedValue = succeeded
-                        ? "Installation finished, but ffmpeg or ffprobe is still missing."
+                        ? "Installation finished, but ffmpeg or ffprobe still cannot run. Check your Homebrew installation."
                         : exitMessage
                     sheetState.wrappedValue = true
                 }
@@ -496,7 +496,7 @@ struct ConverterView: View {
     }
 
     private func startConversion() {
-        guard let ffmpeg = Self.findFFmpeg() else { status = "FFmpeg not found. Install with: brew install ffmpeg"; showError = true; return }
+        guard let ffmpeg = Self.findFFmpeg() else { status = "FFmpeg is missing or cannot run. Check with: ffmpeg -version"; showError = true; return }
         guard let mbps = Double(bitrate), mbps.isFinite, mbps > 0, mbps <= 10000 else { status = "Enter a valid bitrate in Mbps"; showError = true; return }
         if frameRate != "Original" {
             guard let fps = Double(frameRate), fps.isFinite, fps > 0, fps <= 240 else { status = "Frame rate must be between 0 and 240 fps"; showError = true; return }
@@ -596,10 +596,30 @@ struct ConverterView: View {
         executablePaths(named: "brew").first { FileManager.default.isExecutableFile(atPath: $0) }
     }
     private static func findFFmpeg() -> String? {
-        executablePaths(named: "ffmpeg").first { FileManager.default.isExecutableFile(atPath: $0) }
+        executablePaths(named: "ffmpeg").first(where: runsSuccessfully)
     }
     private static func findFFprobe() -> String? {
-        executablePaths(named: "ffprobe").first { FileManager.default.isExecutableFile(atPath: $0) }
+        executablePaths(named: "ffprobe").first(where: runsSuccessfully)
+    }
+    private static func runsSuccessfully(_ path: String) -> Bool {
+        guard FileManager.default.isExecutableFile(atPath: path) else { return false }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["-version"]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
+        do {
+            try process.run()
+            guard finished.wait(timeout: .now() + 3) == .success else {
+                if process.isRunning { process.terminate() }
+                return false
+            }
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
     private static func executablePaths(named name: String) -> [String] {
         let standard = ["/opt/homebrew/bin/\(name)", "/usr/local/bin/\(name)", "/usr/bin/\(name)"]
