@@ -341,29 +341,42 @@ struct ConverterView: View {
 
     private var dependencySheet: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("FFmpeg required", systemImage: "film.stack")
+            Label(dependenciesAvailable ? "FFmpeg ready" : "FFmpeg required", systemImage: "film.stack")
                 .font(.system(size: 20, weight: .semibold))
-            Text("ReelConverter uses FFmpeg and ffprobe to convert videos. One or both are missing or cannot run on this Mac.")
+            Text(dependenciesAvailable
+                 ? "FFmpeg works, but Homebrew reported an installation error. You can still convert videos."
+                 : "ReelConverter needs FFmpeg and ffprobe. One or both are missing or cannot run on this Mac.")
                 .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
 
             if let homebrewPath {
                 if isInstallingFFmpeg {
                     ProgressView()
                     Text(installationMessage).font(.system(size: 12, weight: .medium))
-                    if !installationOutput.isEmpty {
-                        Text(installationOutput).font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary).lineLimit(4).textSelection(.enabled)
-                    }
                 } else {
-                    Button(action: installFFmpeg) {
-                        Label("Install FFmpeg", systemImage: "arrow.down.circle.fill")
-                            .frame(maxWidth: .infinity).frame(height: 40)
-                    }.buttonStyle(.borderedProminent).tint(Color(red: 0.88, green: 0.32, blue: 0.21))
-                    Text("Runs `brew install ffmpeg` using Homebrew at \(homebrewPath).")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    if !dependenciesAvailable {
+                        Button(action: installFFmpeg) {
+                            Label("Install FFmpeg", systemImage: "arrow.down.circle.fill")
+                                .frame(maxWidth: .infinity).frame(height: 40)
+                        }.buttonStyle(.borderedProminent).tint(Color(red: 0.88, green: 0.32, blue: 0.21))
+                        Text("Runs `brew install --yes ffmpeg` using Homebrew at \(homebrewPath).")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
                     if !installationMessage.isEmpty && installationMessage != "FFmpeg is ready." {
                         Text(installationMessage).font(.system(size: 11)).foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                }
+                if !installationOutput.isEmpty {
+                    ScrollView {
+                        Text(installationOutput)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(maxHeight: 120)
+                    Button("Copy Homebrew log") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(installationOutput, forType: .string)
+                    }.buttonStyle(.plain)
                 }
             } else {
                 Text("Homebrew is not installed. Install it first, then reopen ReelConverter to install FFmpeg.")
@@ -404,7 +417,8 @@ struct ConverterView: View {
         guard let homebrewPath else { return }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: homebrewPath)
-        process.arguments = ["install", "ffmpeg"]
+        // The user explicitly requested installation; a GUI process has no terminal to answer Homebrew's prompt.
+        process.arguments = ["install", "--yes", "ffmpeg"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
@@ -424,7 +438,7 @@ struct ConverterView: View {
             guard !data.isEmpty else { handle.readabilityHandler = nil; return }
             let text = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async {
-                outputState.wrappedValue = String((outputState.wrappedValue + text).suffix(700))
+                outputState.wrappedValue = String((outputState.wrappedValue + text).suffix(16_000))
             }
         }
         process.terminationHandler = { finishedProcess in
@@ -440,9 +454,16 @@ struct ConverterView: View {
                     messageState.wrappedValue = "FFmpeg is ready."
                     sheetState.wrappedValue = false
                 } else {
-                    messageState.wrappedValue = succeeded
-                        ? "Installation finished, but ffmpeg or ffprobe still cannot run. Check your Homebrew installation."
-                        : exitMessage
+                    let log = outputState.wrappedValue.lowercased()
+                    if toolsAvailable {
+                        messageState.wrappedValue = "FFmpeg works despite the Homebrew error. Review the log if you need to fix Homebrew."
+                    } else if !succeeded && log.contains("could not symlink") && log.contains("sdl2") {
+                        messageState.wrappedValue = "Homebrew found an SDL2 link conflict. If you do not need the old SDL2 links, run `brew unlink sdl2` in Terminal and retry. Otherwise, review the log before changing your setup."
+                    } else {
+                        messageState.wrappedValue = succeeded
+                            ? "Installation finished, but ffmpeg or ffprobe still cannot run. Check your Homebrew installation."
+                            : exitMessage
+                    }
                     sheetState.wrappedValue = true
                 }
             }

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${1:-1.0.0}"
+VERSION="${1:-1.0.1}"
 "$ROOT/scripts/build-app.sh" "$VERSION"
 ARCH="$(uname -m)"
 ARCHIVE="$ROOT/dist/ReelConverter-v$VERSION-macos-$ARCH.zip"
