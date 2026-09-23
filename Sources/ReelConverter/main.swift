@@ -33,6 +33,13 @@ struct ConverterView: View {
     @State private var customSpeed = ""
     @State private var keepAudio = true
     @State private var isConverting = false
+    @State private var dependenciesAvailable = false
+    @State private var homebrewPath: String?
+    @State private var showDependencySheet = false
+    @State private var isInstallingFFmpeg = false
+    @State private var installationMessage = ""
+    @State private var installationOutput = ""
+    @State private var installerProcess: Process?
     @State private var isHovering = false
     @State private var isDropHover = false
     @State private var isDeveloperHover = false
@@ -83,6 +90,8 @@ struct ConverterView: View {
             addFiles(arguments.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) })
         }
         .onOpenURL { addFiles([$0]) }
+        .task { checkDependencies() }
+        .sheet(isPresented: $showDependencySheet) { dependencySheet }
         .alert("Cannot convert", isPresented: $showError) { Button("OK", role: .cancel) {} } message: { Text(status) }
     }
 
@@ -267,7 +276,7 @@ struct ConverterView: View {
             }.buttonStyle(.plain)
                 .onHover { isConvertHover = $0 }
                 .help(videos.isEmpty ? "Add videos to enable conversion" : "Convert queued videos")
-                .disabled(videos.isEmpty || isConverting)
+                .disabled(videos.isEmpty || isConverting || !dependenciesAvailable)
             Spacer()
         }
         .padding(.horizontal, scaled(24)).padding(.top, scaled(10)).padding(.bottom, scaled(8))
@@ -280,9 +289,122 @@ struct ConverterView: View {
         .overlay(alignment: .top) { LinearGradient(colors: [Color.white.opacity(0), Color.white.opacity(0.04)], startPoint: .top, endPoint: .bottom).frame(height: scaled(1)) }
     }
 
+    private var dependencySheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("FFmpeg required", systemImage: "film.stack")
+                .font(.system(size: 20, weight: .semibold))
+            Text("ReelConverter uses FFmpeg and ffprobe to convert videos. They were not found on this Mac.")
+                .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+
+            if let homebrewPath {
+                if isInstallingFFmpeg {
+                    ProgressView()
+                    Text(installationMessage).font(.system(size: 12, weight: .medium))
+                    if !installationOutput.isEmpty {
+                        Text(installationOutput).font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary).lineLimit(4).textSelection(.enabled)
+                    }
+                } else {
+                    Button(action: installFFmpeg) {
+                        Label("Install FFmpeg", systemImage: "arrow.down.circle.fill")
+                            .frame(maxWidth: .infinity).frame(height: 40)
+                    }.buttonStyle(.borderedProminent).tint(Color(red: 0.88, green: 0.32, blue: 0.21))
+                    Text("Runs `brew install ffmpeg` using Homebrew at \(homebrewPath).")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    if !installationMessage.isEmpty && installationMessage != "FFmpeg is ready." {
+                        Text(installationMessage).font(.system(size: 11)).foregroundStyle(.orange)
+                    }
+                }
+            } else {
+                Text("Homebrew is not installed. Install it first, then reopen ReelConverter to install FFmpeg.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Link(destination: URL(string: "https://brew.sh")!) {
+                    Label("Get Homebrew", systemImage: "safari")
+                        .frame(maxWidth: .infinity).frame(height: 40)
+                }.buttonStyle(.borderedProminent).tint(Color(red: 0.88, green: 0.32, blue: 0.21))
+            }
+
+            HStack {
+                Spacer()
+                Button(isInstallingFFmpeg ? "Continue in background" : "Later") { showDependencySheet = false }
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(24).frame(width: 410)
+        .background(Color(red: 0.075, green: 0.082, blue: 0.095))
+        .preferredColorScheme(.dark)
+    }
+
     private var convertButtonColor: Color {
         if videos.isEmpty || isConverting { return Color.white.opacity(0.12) }
         return isConvertHover ? Color(red: 0.98, green: 0.43, blue: 0.31) : Color(red: 0.88, green: 0.32, blue: 0.21)
+    }
+
+    private func checkDependencies() {
+        homebrewPath = Self.findHomebrew()
+        dependenciesAvailable = Self.findFFmpeg() != nil && Self.findFFprobe() != nil
+        if dependenciesAvailable {
+            showDependencySheet = false
+            installationMessage = "FFmpeg is ready."
+        } else {
+            showDependencySheet = true
+        }
+    }
+
+    private func installFFmpeg() {
+        guard let homebrewPath else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: homebrewPath)
+        process.arguments = ["install", "ffmpeg"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        installationOutput = ""
+        installationMessage = "Installing FFmpeg with Homebrew…"
+        isInstallingFFmpeg = true
+        installerProcess = process
+
+        let outputState = $installationOutput
+        let messageState = $installationMessage
+        let installingState = $isInstallingFFmpeg
+        let processState = $installerProcess
+        let availabilityState = $dependenciesAvailable
+        let sheetState = $showDependencySheet
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { handle.readabilityHandler = nil; return }
+            let text = String(decoding: data, as: UTF8.self)
+            DispatchQueue.main.async {
+                outputState.wrappedValue = String((outputState.wrappedValue + text).suffix(700))
+            }
+        }
+        process.terminationHandler = { finishedProcess in
+            pipe.fileHandleForReading.readabilityHandler = nil
+            let succeeded = finishedProcess.terminationStatus == 0
+            let toolsAvailable = Self.findFFmpeg() != nil && Self.findFFprobe() != nil
+            let exitMessage = "Homebrew could not install FFmpeg (exit code \(finishedProcess.terminationStatus))."
+            DispatchQueue.main.async {
+                processState.wrappedValue = nil
+                installingState.wrappedValue = false
+                availabilityState.wrappedValue = toolsAvailable
+                if succeeded && toolsAvailable {
+                    messageState.wrappedValue = "FFmpeg is ready."
+                    sheetState.wrappedValue = false
+                } else {
+                    messageState.wrappedValue = succeeded
+                        ? "Installation finished, but ffmpeg or ffprobe is still missing."
+                        : exitMessage
+                    sheetState.wrappedValue = true
+                }
+            }
+        }
+        do {
+            try process.run()
+        } catch {
+            isInstallingFFmpeg = false
+            installerProcess = nil
+            installationMessage = "Could not start Homebrew: \(error.localizedDescription)"
+        }
     }
 
     private func pickFiles() {
@@ -304,7 +426,7 @@ struct ConverterView: View {
     }
 
     private func probeSource(_ url: URL) {
-        guard let ffprobe = findFFprobe() else { return }
+        guard let ffprobe = Self.findFFprobe() else { return }
         let process = Process(); process.executableURL = URL(fileURLWithPath: ffprobe)
         process.arguments = ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,avg_frame_rate", "-of", "default=noprint_wrappers=1", url.path]
         let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
@@ -325,7 +447,7 @@ struct ConverterView: View {
     }
 
     private func startConversion() {
-        guard let ffmpeg = findFFmpeg() else { status = "FFmpeg not found. Install with: brew install ffmpeg"; showError = true; return }
+        guard let ffmpeg = Self.findFFmpeg() else { status = "FFmpeg not found. Install with: brew install ffmpeg"; showError = true; return }
         guard let mbps = Double(bitrate), mbps.isFinite, mbps > 0, mbps <= 10000 else { status = "Enter a valid bitrate in Mbps"; showError = true; return }
         if frameRate != "Original" {
             guard let fps = Double(frameRate), fps.isFinite, fps > 0, fps <= 240 else { status = "Frame rate must be between 0 and 240 fps"; showError = true; return }
@@ -403,8 +525,21 @@ struct ConverterView: View {
     }
 
     private func revealInFinder(_ url: URL) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-    private func findFFmpeg() -> String? { ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"].first { FileManager.default.isExecutableFile(atPath: $0) } }
-    private func findFFprobe() -> String? { ["/opt/homebrew/bin/ffprobe", "/usr/local/bin/ffprobe", "/usr/bin/ffprobe"].first { FileManager.default.isExecutableFile(atPath: $0) } }
+    private static func findHomebrew() -> String? {
+        executablePaths(named: "brew").first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+    private static func findFFmpeg() -> String? {
+        executablePaths(named: "ffmpeg").first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+    private static func findFFprobe() -> String? {
+        executablePaths(named: "ffprobe").first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+    private static func executablePaths(named name: String) -> [String] {
+        let standard = ["/opt/homebrew/bin/\\(name)", "/usr/local/bin/\\(name)", "/usr/bin/\\(name)"]
+        let fromPath = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+            .split(separator: ":").map { String($0) + "/\\(name)" }
+        return standard + fromPath
+    }
 }
 
 private struct ConfigFrame: ViewModifier {
