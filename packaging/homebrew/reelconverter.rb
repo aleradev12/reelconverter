@@ -1,7 +1,7 @@
 # Copy into Casks/reelconverter.rb in your homebrew-tap repository AFTER uploading
 # and notarizing an arm64 release ZIP. Replace the SHA-256 below.
 cask "reelconverter" do
-  version "0.1.0"
+  version "1.0.0"
   sha256 "REPLACE_WITH_RELEASE_ZIP_SHA256"
 
   url "https://github.com/aleradev12/reelconverter/releases/download/v#{version}/ReelConverter-v#{version}-macos-arm64.zip"

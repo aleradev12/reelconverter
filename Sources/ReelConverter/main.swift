@@ -526,7 +526,10 @@ struct ConverterView: View {
         let rateTag = frameRate == "Original" ? "source" : "\(frameRate)fps"
         let sizeTag = resolution == "Original" ? "source" : (resolution.hasSuffix("p") ? resolution : "\(resolution)p")
         let output = input.deletingLastPathComponent().appendingPathComponent("\(input.deletingPathExtension().lastPathComponent)_\(codecTag)_\(bitrate)Mbps_\(rateTag)_\(sizeTag)_\(speed)x_\(encodingPreset).mp4")
-        var args = ["-y", "-i", input.path, "-c:v", codec == "H.265" ? "libx265" : "libx264", "-preset", encodingPreset, "-b:v", "\(Int(mbps * 1000))k", "-maxrate", "\(Int(mbps * 1250))k", "-bufsize", "\(Int(mbps * 2000))k"]
+        // Encode beside the source, but never let FFmpeg overwrite an earlier conversion.
+        let temporary = output.deletingLastPathComponent().appendingPathComponent(".reelconverter-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        var args = ["-n", "-i", input.path, "-c:v", codec == "H.265" ? "libx265" : "libx264", "-preset", encodingPreset, "-b:v", "\(Int(mbps * 1000))k", "-maxrate", "\(Int(mbps * 1250))k", "-bufsize", "\(Int(mbps * 2000))k"]
         if codec == "H.265" { args += ["-tag:v", "hvc1"] }
         if frameRate != "Original" { args += ["-r", frameRate] }
         var filters: [String] = []
@@ -537,8 +540,8 @@ struct ConverterView: View {
         if speed != "1" { filters.append("setpts=PTS/\(speed)") }
         if !filters.isEmpty { args += ["-vf", filters.joined(separator: ",")] }
         if keepAudio { args += ["-filter:a", audioTempoFilter(Double(speed) ?? 1), "-c:a", "aac", "-b:a", "192k"] } else { args += ["-an"] }
-        args += ["-movflags", "+faststart", "-progress", "pipe:1", "-nostats", output.path]
-        return try await withCheckedThrowingContinuation { continuation in
+        args += ["-movflags", "+faststart", "-progress", "pipe:1", "-nostats", temporary.path]
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let process = Process(); process.executableURL = URL(fileURLWithPath: ffmpeg); process.arguments = args
             let pipe = Pipe(); process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
             do {
@@ -553,11 +556,26 @@ struct ConverterView: View {
                     }
                     process.waitUntilExit()
                     DispatchQueue.main.async {
-                        if process.terminationStatus == 0 { continuation.resume(returning: output) }
+                        if process.terminationStatus == 0 { continuation.resume() }
                         else { continuation.resume(throwing: ConversionError.message("FFmpeg could not process \(input.lastPathComponent)")) }
                     }
                 }
             } catch { continuation.resume(throwing: error) }
+        }
+        // A hard link claims the final name without replacing an existing file, even if
+        // another conversion creates it between the existence check and the link.
+        let manager = FileManager.default
+        var candidate = output
+        var suffix = 1
+        while true {
+            do {
+                try manager.linkItem(at: temporary, to: candidate)
+                return candidate
+            } catch {
+                guard manager.fileExists(atPath: candidate.path) else { throw error }
+                candidate = output.deletingLastPathComponent().appendingPathComponent("\(output.deletingPathExtension().lastPathComponent) (\(suffix)).mp4")
+                suffix += 1
+            }
         }
     }
 
