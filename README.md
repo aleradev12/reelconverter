@@ -30,7 +30,11 @@ ReelConverter uses [FFmpeg](https://ffmpeg.org/) and `ffprobe` but does not bund
 >
 > ![macOS Gatekeeper warning: “ReelConverter” Not Opened](Assets/Gatekeeper-warning.png)
 >
-> If you downloaded ReelConverter from this project's official [GitHub Releases](https://github.com/aleradev12/reelconverter/releases) and choose to run it, click **Done**, then open **System Settings → Privacy & Security**. Scroll to **Security**, click **Open Anyway** next to ReelConverter, and confirm. If that option is not shown, Control-click `ReelConverter.app` in Finder, choose **Open**, and confirm in the dialog. This allows this app to run; do not disable Gatekeeper system-wide.
+> If you downloaded ReelConverter from this project's official [GitHub Releases](https://github.com/aleradev12/reelconverter/releases) and choose to run it, click **Done**, then open **System Settings → Privacy & Security**. Under **Security**, click **Open Anyway** next to the blocked app and confirm:
+>
+> ![System Settings showing the Open Anyway button for ReelConverter](Assets/Gatekeeper-open-anyway.png)
+>
+> If **Open Anyway** is not shown, Control-click `ReelConverter.app` in Finder, choose **Open**, and confirm in the dialog. This allows this app to run; do not disable Gatekeeper system-wide.
 
 ## Use
 
