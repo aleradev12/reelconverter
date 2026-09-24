@@ -26,7 +26,11 @@ brew install --cask aleradev12/tap/reelconverter
 
 ReelConverter uses [FFmpeg](https://ffmpeg.org/) and `ffprobe` but does not bundle them. The Homebrew Cask installs only ReelConverter, **not FFmpeg**. On first launch, the app checks whether both tools run; if they are unavailable, it offers to run `brew install ffmpeg` for you. You can also install FFmpeg yourself. If Homebrew encounters a dependency conflict, the app shows its recent output and lets you copy it; it will not change other installed packages automatically.
 
-> **Note:** This app has only an ad-hoc signature and is not notarized. macOS Gatekeeper may block it after downloading, including when installed through Homebrew. Do not disable Gatekeeper system-wide.
+> **Note:** This app has only an ad-hoc signature and is not notarized. macOS Gatekeeper may show the warning below after installation, including when installed through Homebrew.
+>
+> ![macOS Gatekeeper warning: “ReelConverter” Not Opened](Assets/Gatekeeper-warning.png)
+>
+> If you downloaded ReelConverter from this project's official [GitHub Releases](https://github.com/aleradev12/reelconverter/releases) and choose to run it, click **Done**, then open **System Settings → Privacy & Security**. Scroll to **Security**, click **Open Anyway** next to ReelConverter, and confirm. If that option is not shown, Control-click `ReelConverter.app` in Finder, choose **Open**, and confirm in the dialog. This allows this app to run; do not disable Gatekeeper system-wide.
 
 ## Use
 
