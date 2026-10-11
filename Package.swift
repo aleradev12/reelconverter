@@ -5,5 +5,8 @@ let package = Package(
     name: "ReelConverter",
     platforms: [.macOS(.v13)],
     products: [.executable(name: "ReelConverter", targets: ["ReelConverter"])] ,
-    targets: [.executableTarget(name: "ReelConverter", path: "Sources/ReelConverter")]
+    targets: [
+        .executableTarget(name: "ReelConverter", path: "Sources/ReelConverter"),
+        .testTarget(name: "ReelConverterTests", dependencies: ["ReelConverter"])
+    ]
 )

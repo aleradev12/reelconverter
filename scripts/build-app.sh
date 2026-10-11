@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="${1:-1.0.1}"
+VERSION="${1:-1.0.2}"
 APP="$ROOT/dist/ReelConverter.app"
 ICONSET="$ROOT/.build/ReelConverter.iconset"
 

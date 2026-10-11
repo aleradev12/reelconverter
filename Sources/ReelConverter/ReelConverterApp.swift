@@ -583,21 +583,7 @@ struct ConverterView: View {
                 }
             } catch { continuation.resume(throwing: error) }
         }
-        // A hard link claims the final name without replacing an existing file, even if
-        // another conversion creates it between the existence check and the link.
-        let manager = FileManager.default
-        var candidate = output
-        var suffix = 1
-        while true {
-            do {
-                try manager.linkItem(at: temporary, to: candidate)
-                return candidate
-            } catch {
-                guard manager.fileExists(atPath: candidate.path) else { throw error }
-                candidate = output.deletingLastPathComponent().appendingPathComponent("\(output.deletingPathExtension().lastPathComponent) (\(suffix)).mp4")
-                suffix += 1
-            }
-        }
+        return try OutputFile.publish(temporary: temporary, output: output)
     }
 
     private func audioTempoFilter(_ speed: Double) -> String {

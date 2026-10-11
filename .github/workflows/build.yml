@@ -10,8 +10,10 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Test output publication
+        run: swift test
       - name: Build release app and ZIP
-        run: ./scripts/package-release.sh 1.0.1
+        run: ./scripts/package-release.sh
       - name: Verify app bundle
         run: codesign --verify --deep --strict dist/ReelConverter.app
       - uses: actions/upload-artifact@v4

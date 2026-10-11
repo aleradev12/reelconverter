@@ -55,3 +55,18 @@ open dist/ReelConverter.app
 ```
 
 The build is for the current Mac architecture. Source code is licensed under the [MIT License](LICENSE).
+
+Run the output-saving regression tests on the internal disk or a mounted external volume:
+
+```sh
+swift test
+REELCONVERTER_TEST_DIRECTORY="/Volumes/YourExternalDisk" swift test
+```
+
+Tests create and remove their own uniquely named directories. They cover filename collisions, concurrent saves, and the exclusive-copy fallback used on ExFAT, where hard links and exclusive renames may be unavailable.
+
+## 1.0.2
+
+- Fixed conversion failing with “couldn't be linked” when saving to ExFAT external disks.
+- Existing output files are still never overwritten; repeated conversions receive numbered filenames.
+- On filesystems without exclusive rename support, saving uses an exclusive copy. This final step can take extra time and temporarily requires space for a second copy of the converted video.
