@@ -65,6 +65,11 @@ REELCONVERTER_TEST_DIRECTORY="/Volumes/YourExternalDisk" swift test
 
 Tests create and remove their own uniquely named directories. They cover filename collisions, concurrent saves, and the exclusive-copy fallback used on ExFAT, where hard links and exclusive renames may be unavailable.
 
+## 1.0.3
+
+- The app version is always visible next to the name in the main window; hover over it to see the build number.
+- Fixed returning from a manual appearance to System leaving the content in the old theme until window focus changed. System appearance changes are also tracked while the app is open.
+
 ## 1.0.2
 
 - Fixed conversion failing with “couldn't be linked” when saving to ExFAT external disks.

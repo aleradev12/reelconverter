@@ -23,7 +23,7 @@ struct ConverterView: View {
     @State private var videos: [VideoItem] = []
     @State private var codec = "H.264"
     @AppStorage("reelconverter.theme") private var themePreference = "system"
-    @Environment(\.colorScheme) private var colorScheme
+    @StateObject private var systemAppearance = SystemAppearance()
     @State private var bitrate = "5"
     @State private var customBitrate = ""
     @State private var frameRate = "Original"
@@ -84,7 +84,8 @@ struct ConverterView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(primaryText)
-        .preferredColorScheme(preferredScheme)
+        .environment(\.colorScheme, resolvedScheme)
+        .preferredColorScheme(resolvedScheme)
         .background(WindowAspectRatio())
         .onDrop(of: [UTType.fileURL], isTargeted: $isHovering, perform: receiveDrop)
         .onAppear {
@@ -98,17 +99,17 @@ struct ConverterView: View {
         .alert("Cannot convert", isPresented: $showError) { Button("OK", role: .cancel) {} } message: { Text(status) }
     }
 
-    private var isDark: Bool {
-        if themePreference == "dark" { return true }
-        if themePreference == "light" { return false }
-        return colorScheme == .dark
+    private var resolvedScheme: ColorScheme {
+        systemAppearance.resolvedScheme(preference: themePreference)
     }
-    private var preferredScheme: ColorScheme? {
-        switch themePreference {
-        case "dark": .dark
-        case "light": .light
-        default: nil
-        }
+    private var isDark: Bool { resolvedScheme == .dark }
+    private var versionLabel: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+            .map { "v\($0)" } ?? "Development"
+    }
+    private var versionDetails: String {
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "local"
+        return "ReelConverter \(versionLabel) · build \(build)"
     }
     private func ink(_ opacity: Double) -> Color { isDark ? Color.white.opacity(opacity) : Color.black.opacity(opacity) }
     private var pageBackground: Color { isDark ? Color(red: 0.075, green: 0.082, blue: 0.095) : Color(red: 0.94, green: 0.95, blue: 0.97) }
@@ -142,7 +143,11 @@ struct ConverterView: View {
         HStack(spacing: scaled(10)) {
             Image(systemName: "film.fill").font(.system(size: scaled(16))).foregroundStyle(Color(red: 0.95, green: 0.49, blue: 0.35))
             Text("REELCONVERTER").font(.system(size: scaled(13), weight: .bold, design: .rounded)).tracking(1.4)
-            Text("BATCH VIDEO").font(.system(size: scaled(9), weight: .medium)).tracking(1).foregroundStyle(tertiaryText)
+            Text(versionLabel)
+                .font(.system(size: scaled(10), weight: .medium)).monospacedDigit()
+                .foregroundStyle(secondaryText)
+                .help(versionDetails)
+                .accessibilityLabel(versionDetails)
             Spacer(minLength: 8)
             Text("DEVELOPER ·").font(.system(size: scaled(9), weight: .medium)).tracking(0.5).foregroundStyle(tertiaryText)
             Link("ALERADEV12", destination: URL(string: "https://github.com/aleradev12")!)

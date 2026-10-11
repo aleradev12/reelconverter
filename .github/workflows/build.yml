@@ -10,7 +10,7 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Test output publication
+      - name: Test output publication and appearance
         run: swift test
       - name: Build release app and ZIP
         run: ./scripts/package-release.sh
